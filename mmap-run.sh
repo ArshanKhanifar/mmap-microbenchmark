@@ -1,7 +1,12 @@
-j=256;
-n=25;
+j=1024;
+k=1;
+n=15;
 for i in $(jot $n); do
 	j=$(($j*2));
-	echo 'SIZE: '$j
-	./mmap -l 1 -f $j -p ./sample.txt mmap_read;
+  k=$(($k*2));
+	echo 'SIZE: '$k'KiBs'
+	./mmap -l 10 -f $j -p /tmp/sample.txt mmap_read;
 done;
+
+
+

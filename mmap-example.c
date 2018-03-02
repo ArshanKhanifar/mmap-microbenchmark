@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <time.h>
 #include <err.h>
 #include <unistd.h>
 #include <string.h>
@@ -55,47 +56,6 @@ benchmark_stop(void)
 	error = clock_gettime(CLOCK_REALTIME, &ts_end);
 	assert(error == 0);
 }
-  
-uintmax_t
-test_getppid(uintmax_t num, uintmax_t int_arg, const char *path)
-{
-	uintmax_t i;
-	/*
-	 * This is process-local, but can change, so will require a
-	 * lock.
-	 */
-	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
-		getppid();
-	}
-	benchmark_stop();
-	return (i);
-}
-
-uintmax_t
-test_read(uintmax_t num, uintmax_t int_arg, const char *path)
-{
-	char buf[int_arg];
-	uintmax_t i;
-	int fd;
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
-		err(-1, "test_open_read: %s", path);
-	(void)pread(fd, buf, int_arg, 0);
-
-	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
-		(void)pread(fd, buf, int_arg, 0);
-	}
-	benchmark_stop();
-	close(fd);
-	return (i);
-}
 
 uintmax_t
 test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
@@ -104,33 +64,35 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 	char *addr = 0, *fp, *memp;
 	uintmax_t i, j;
 	off_t off = 0;
-	int fd, junk, stride = getpagesize();
-	//size_t len = (stride * int_arg);
+	int fd, junk, c_size = 64, r, range;
 	size_t len = int_arg;
 	unsigned long long memsize;
 
+  srand(time(NULL));
+  
 	fd = open(path, O_RDONLY);
 
 	if (fd < 0)
 		err(-1, "test_open_read: %s", path);
 
 	fp = (char*) mmap(addr, len, PROT_READ, MAP_PRIVATE, fd, off);
-	memp = fp;
-	memsize = len;
+
+  range = len / c_size; // divide working space into 64 byte blocks (cache-line size)
+
+  memp = fp;
 
 	benchmark_start();
-	for (i = 0; i < num; i++) {
-		if (alarm_fired)
-			break;
-		junk += memp[0];
-		memp += stride;
-		if (memp >= (fp + memsize)) {
-			memp = fp;
-		}
+	for (i = 0; i < num; i++) { // randomly read from the working space
+    memp = fp;
+	  if (alarm_fired)
+	  	break;
+    r = rand() % range; // random number in the range
+    memp += r * c_size;
+	  junk += memp[0];
 	}
 	benchmark_stop();
 	close(fd);
-	return (i);
+	return (i/1000); // per 1k iterations
 }
 
 struct test {
@@ -142,8 +104,6 @@ struct test {
 #define	FLAG_PATH	0x00000001
 
 static const struct test tests[] = {
-	{ "getppid", test_getppid },
-	{ "read_1", test_read, .t_flags = FLAG_PATH },
 	{ "mmap_read", test_mmap_read, .t_flags = FLAG_PATH },
 };
 
@@ -154,8 +114,8 @@ usage(void)
 {
 	int i;
 
-	fprintf(stderr, "syscall_timing [-i iterations] [-l loops] "
-	    "[-s seconds] test\n");
+	fprintf(stderr, "syscall_timing [-i 1-k-iterations] [-l loops] "
+	    "[-s seconds] [-f filesize ] test\n");
 	for (i = 0; i < tests_count; i++)
 		fprintf(stderr, "  %s\n", tests[i].t_name);
 	exit(-1);
@@ -259,7 +219,7 @@ int main(int argc, char *argv[])
 	assert(error == 0);
 	printf("Clock resolution: %ju.%09ju\n", (uintmax_t)ts_res.tv_sec,
 	    (uintmax_t)ts_res.tv_nsec);
-	printf("test\tloop\ttime\titerations\tperiteration\n");
+	printf("test\tloop\ttime\titerations\tper-1k-iteration\n");
 
 
 	for (j = 0; j < argc; j++) {

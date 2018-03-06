@@ -68,7 +68,7 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 	size_t len = int_arg;
 	unsigned long long memsize;
 
-  srand(time(NULL));
+  	srand(time(NULL));
   
 	fd = open(path, O_RDONLY);
 
@@ -77,18 +77,18 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 
 	fp = (char*) mmap(addr, len, PROT_READ, MAP_PRIVATE, fd, off);
 
-  range = len / c_size; // divide working space into 64 byte blocks (cache-line size)
-
-  memp = fp;
+	range = len / c_size; // divide working space into 64 byte blocks (cache-line size)
+   	
+	memp = fp;
 
 	benchmark_start();
 	for (i = 0; i < num; i++) { // randomly read from the working space
-    memp = fp;
-	  if (alarm_fired)
-	  	break;
-    r = rand() % range; // random number in the range
-    memp += r * c_size;
-	  junk += memp[0];
+    	memp = fp;
+	 	if (alarm_fired)
+		  	break;
+    	r = rand() % range; // random number in the range
+    	memp += r * c_size;
+		junk += memp[0];
 	}
 	benchmark_stop();
 	close(fd);

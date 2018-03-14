@@ -64,7 +64,7 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 	char *addr = 0, *fp, *memp;
 	uintmax_t i, j;
 	off_t off = 0;
-	int fd, junk, c_size = 64, r, range;
+	size_t fd, junk, c_size = 64, r, range;
 	size_t len = int_arg;
 	unsigned long long memsize;
 
@@ -76,6 +76,12 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 		err(-1, "test_open_read: %s", path);
 
 	fp = (char*) mmap(addr, len, PROT_READ, MAP_PRIVATE, fd, off);
+
+	if (fp == MAP_FAILED ) {
+		err(-1, "mmap:");
+		printf("error\n");
+	}else 
+		printf("no error\n");
 
 	range = len / c_size; // divide working space into 64 byte blocks (cache-line size)
    	

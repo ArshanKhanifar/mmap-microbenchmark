@@ -77,18 +77,14 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 
 	fp = (char*) mmap(addr, len, PROT_READ, MAP_PRIVATE, fd, off);
 
-	if (fp == MAP_FAILED ) {
+	if (fp == MAP_FAILED )
 		err(-1, "mmap:");
-		printf("error\n");
-	} else 
-		printf("no error\n");
 
 	range = len / c_size; // divide working space into 64 byte blocks (cache-line size)
    	
 	memp = fp;
 
 	benchmark_start();
-  printf("entering loop\n");
 	for (i = 0; i < num; i++) { // randomly read from the working space
     	memp = fp;
 	 	if (alarm_fired)
@@ -99,9 +95,7 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 	}
 	benchmark_stop();
 	close(fd);
-  printf("loop ended\n");
-  printf("i/1000 is: %d\n", i/1000);
-	return (i/1000); // per 1k iterations
+	return (i); // per iterations
 }
 
 struct test {
@@ -228,7 +222,7 @@ int main(int argc, char *argv[])
 	assert(error == 0);
 	printf("Clock resolution: %ju.%09ju\n", (uintmax_t)ts_res.tv_sec,
 	    (uintmax_t)ts_res.tv_nsec);
-	printf("test\tloop\ttime\titerations\tper-1k-iteration\n");
+	printf("test\tloop\ttime\titerations\tper-iteration\n");
 
 
 	for (j = 0; j < argc; j++) {

@@ -80,7 +80,7 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 	if (fp == MAP_FAILED ) {
 		err(-1, "mmap:");
 		printf("error\n");
-	}else 
+	} else 
 		printf("no error\n");
 
 	range = len / c_size; // divide working space into 64 byte blocks (cache-line size)
@@ -88,6 +88,7 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 	memp = fp;
 
 	benchmark_start();
+  printf("entering loop\n");
 	for (i = 0; i < num; i++) { // randomly read from the working space
     	memp = fp;
 	 	if (alarm_fired)
@@ -98,6 +99,8 @@ test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
 	}
 	benchmark_stop();
 	close(fd);
+  printf("loop ended\n");
+  printf("i/1000 is: %d\n", i/1000);
 	return (i/1000); // per 1k iterations
 }
 

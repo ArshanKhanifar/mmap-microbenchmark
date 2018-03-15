@@ -26,7 +26,7 @@ mmap_read	8	1.004042000	101932768	0.000000009
 mmap_read	9	1.003278000	101852432	0.000000009
 ```
 
-##results:
+## results:
 The microbenchmark was tried with a 32GiB file on normal filesystem,
 and a 1GB file on `tmpfs` and `nvdimm`. The `mmap-run` script runs 
 the executable with a size-range from 2KiBs to 1GiB for `tmpfs` and 

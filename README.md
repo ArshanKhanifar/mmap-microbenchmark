@@ -3,13 +3,13 @@ file from the system. The microbenchmark follows the same methodologies
 as the [syscall\_timing microbenchmark tool] (https://github.com/freebsd/freebsd/tree/master/tools/tools/syscall_timing) in FreeBSD.
 It is used for testing `NVDIMM`'s performance in Gen9 machines.
 
-##usage
+## usage
 ```
 $ cc -o mmap mmap.c
 mmap [-i iterations] [-l loops] [-s seconds] -f filesize -p path
 ```
 
-##sampe screenshot of microbenchmark
+## sample screenshot of microbenchmark
 ```
 $ ./mmap -f 100 -p sample.txt
 Clock resolution: 0.000001000

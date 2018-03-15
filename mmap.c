@@ -17,7 +17,6 @@ static struct timespec ts_start, ts_end;
 static int alarm_timeout;
 static volatile int alarm_fired;
 
-
 #define timespecsub(vvp, uvp)						\
 	do {								\
 		(vvp)->tv_sec -= (uvp)->tv_sec;				\
@@ -58,14 +57,15 @@ benchmark_stop(void)
 }
 
 uintmax_t
-test_mmap_read(uintmax_t num, uintmax_t int_arg, const char *path)
+test_mmap_read(uintmax_t num, uintmax_t mmap_size, const char *path)
 {
-	char buf[int_arg];
+	char buf[mmap_size];
 	char *addr = 0, *fp, *memp;
 	uintmax_t i, j;
 	off_t off = 0;
-	size_t fd, junk, c_size = 64, r, range;
-	size_t len = int_arg;
+  int fd;
+	size_t junk, c_size = 64, r, range;
+	size_t len = mmap_size;
 	unsigned long long memsize;
 
   	srand(time(NULL));
@@ -117,10 +117,8 @@ usage(void)
 {
 	int i;
 
-	fprintf(stderr, "syscall_timing [-i 1-k-iterations] [-l loops] "
-	    "[-s seconds] [-f filesize ] test\n");
-	for (i = 0; i < tests_count; i++)
-		fprintf(stderr, "  %s\n", tests[i].t_name);
+	fprintf(stderr, "mmap [-i iterations] [-l loops] "
+	    "[-s seconds] -f filesize -p path-to-file\n");
 	exit(-1);
 }
 
@@ -131,12 +129,14 @@ int main(int argc, char *argv[])
 	const char *path;
 	char *tmp_dir, *tmp_path, *endp;
 	long long ll;
-	int ch, fd, error, i, j, k, rv;
-	uintmax_t iterations, loops, arg_int;
+	int ch, fd, error, i, j, k, rv, opt_path, opt_size;
+	uintmax_t iterations, loops, size;
 
+  opt_path = 0;
+  opt_size = 0;
 	alarm_timeout = 1;
 	iterations = 0;
-	arg_int = 0;
+	size = 0;
 	loops = 10;
 	path = NULL;
 	tmp_path = NULL;
@@ -158,6 +158,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'p':
+      opt_path = 1;
 			path = optarg;
 			break;
 
@@ -169,10 +170,11 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'f':
+      opt_size = 1;
 			ll = strtol(optarg, &endp, 10);
 			if (*endp != 0 || ll < 1)
 				usage();
-			arg_int = ll;
+			size = ll;
 			break;
 
 		case '?':
@@ -183,6 +185,10 @@ int main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+  if ((opt_path + opt_size) < 2) {
+    usage();
+  }
+
 	if (iterations < 1 && alarm_timeout < 1)
 		usage();
 	if (iterations < 1)
@@ -190,34 +196,22 @@ int main(int argc, char *argv[])
 	if (loops < 1)
 		loops = 1;
 
-	if (argc < 1)
-		usage();
-
 	/*
-	 * Validate test list and that, if a path is required, it is
+	 * Validate if a path is required, it is
 	 * defined.
 	 */
-	for (j = 0; j < argc; j++) {
-		the_test = NULL;
-		for (i = 0; i < tests_count; i++) {
-			if (strcmp(argv[j], tests[i].t_name) == 0)
-				the_test = &tests[i];
-		}
-		if (the_test == NULL)
-			usage();
-		if ((the_test->t_flags & FLAG_PATH) && (path == NULL)) {
-			tmp_dir = strdup("/tmp/syscall_timing.XXXXXXXX");
-			if (tmp_dir == NULL)
-				err(1, "strdup");
-			tmp_dir = mkdtemp(tmp_dir);
-			if (tmp_dir == NULL)
-				err(1, "mkdtemp");
-			rv = asprintf(&tmp_path, "%s/testfile", tmp_dir);
-			if (rv <= 0)
-				err(1, "asprintf");
-		}
+  the_test = &tests[0];
+	if ((the_test->t_flags & FLAG_PATH) && (path == NULL)) {
+		tmp_dir = strdup("/tmp/syscall_timing.XXXXXXXX");
+		if (tmp_dir == NULL)
+			err(1, "strdup");
+		tmp_dir = mkdtemp(tmp_dir);
+		if (tmp_dir == NULL)
+			err(1, "mkdtemp");
+		rv = asprintf(&tmp_path, "%s/testfile", tmp_dir);
+		if (rv <= 0)
+			err(1, "asprintf");
 	}
-
 	error = clock_getres(CLOCK_REALTIME, &ts_res);
 	assert(error == 0);
 	printf("Clock resolution: %ju.%09ju\n", (uintmax_t)ts_res.tv_sec,
@@ -225,52 +219,45 @@ int main(int argc, char *argv[])
 	printf("test\tloop\ttime\titerations\tper-iteration\n");
 
 
-	for (j = 0; j < argc; j++) {
-		uintmax_t calls, nsecsperit;
+	uintmax_t calls, nsecsperit;
 
-		the_test = NULL;
-		for (i = 0; i < tests_count; i++) {
-			if (strcmp(argv[j], tests[i].t_name) == 0)
-				the_test = &tests[i];
-		}
+	the_test = &tests[0];
+	if (tmp_path != NULL) {
+		fd = open(tmp_path, O_WRONLY | O_CREAT, 0700);
+		if (fd < 0)
+			err(1, "cannot open %s", tmp_path);
+		error = ftruncate(fd, 1000000);
+		if (error != 0)
+			err(1, "ftruncate");
+		error = close(fd);
+		if (error != 0)
+			err(1, "close");
+		path = tmp_path;
+	}
 
-		if (tmp_path != NULL) {
-			fd = open(tmp_path, O_WRONLY | O_CREAT, 0700);
-			if (fd < 0)
-				err(1, "cannot open %s", tmp_path);
-			error = ftruncate(fd, 1000000);
-			if (error != 0)
-				err(1, "ftruncate");
-			error = close(fd);
-			if (error != 0)
-				err(1, "close");
-			path = tmp_path;
-		}
+	/*
+	 * Run one warmup, then do the real thing (loops) times.
+	 */
+	the_test->t_func(iterations, size, path);
+	calls = 0;
+	for (k = 0; k < loops; k++) {
+		calls = the_test->t_func(iterations, size,
+		    path);
+		timespecsub(&ts_end, &ts_start);
+		printf("%s\t%d\t", the_test->t_name, k);
+		printf("%ju.%09ju\t%ju\t", (uintmax_t)ts_end.tv_sec,
+		    (uintmax_t)ts_end.tv_nsec, calls);
 
-		/*
-		 * Run one warmup, then do the real thing (loops) times.
-		 */
-		the_test->t_func(iterations, arg_int, path);
-		calls = 0;
-		for (k = 0; k < loops; k++) {
-			calls = the_test->t_func(iterations, arg_int,
-			    path);
-			timespecsub(&ts_end, &ts_start);
-			printf("%s\t%d\t", the_test->t_name, k);
-			printf("%ju.%09ju\t%ju\t", (uintmax_t)ts_end.tv_sec,
-			    (uintmax_t)ts_end.tv_nsec, calls);
-
-		/*
-		 * Note.  This assumes that each iteration takes less than
-		 * a second, and that our total nanoseconds doesn't exceed
-		 * the room in our arithmetic unit.  Fine for system calls,
-		 * but not for long things.
-		 */
-			nsecsperit = ts_end.tv_sec * 1000000000;
-			nsecsperit += ts_end.tv_nsec;
-			nsecsperit /= calls;
-			printf("0.%09ju\n", (uintmax_t)nsecsperit);
-		}
+	/*
+	 * Note.  This assumes that each iteration takes less than
+	 * a second, and that our total nanoseconds doesn't exceed
+	 * the room in our arithmetic unit.  Fine for system calls,
+	 * but not for long things.
+	 */
+		nsecsperit = ts_end.tv_sec * 1000000000;
+		nsecsperit += ts_end.tv_nsec;
+		nsecsperit /= calls;
+		printf("0.%09ju\n", (uintmax_t)nsecsperit);
 	}
 
 	return 0;

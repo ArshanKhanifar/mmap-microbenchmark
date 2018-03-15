@@ -35,8 +35,8 @@ the executable with a size-range from 2KiBs to 1GiB for `tmpfs` and
 Since the microbenchmark strides randomly through the `mmap`ed region,
 for bigger sizes, there are more cache misses, and thus the average 
 read time increases. This is not, however, measuring specific cache 
-level's access times. The effect of higher-level caches increase as the 
-mapped region's size increases.
+level's access times. The effect of higher-level caches is more 
+apparent as the mapped region's size increases.
 
 ![alt text](/gen9-data/chart.png)
 

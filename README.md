@@ -1,6 +1,6 @@
 This repository contains a microbenchmark that uses mmap(2) to load a
 file from the system. The microbenchmark follows the same methodologies
-as the [syscall\_timing microbenchmark tool] (https://github.com/freebsd/freebsd/tree/master/tools/tools/syscall_timing) in FreeBSD.
+as the [syscall\_timing microbenchmark tool](https://github.com/freebsd/freebsd/tree/master/tools/tools/syscall_timing) in FreeBSD.
 It is used for testing `NVDIMM`'s performance in Gen9 machines.
 
 ## usage
